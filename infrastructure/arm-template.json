@@ -151,7 +151,7 @@
             ]
         },
         {
-            "name": "[parameters('virtualMachineName')]",
+            "name": "[parameters('nodeVirtualMachineName')]",
             "type": "Microsoft.Compute/virtualMachines",
             "apiVersion": "2016-04-30-preview",
             "location": "[resourceGroup().location]",
@@ -272,7 +272,8 @@
                             "subnet": {
                                 "id": "[variables('subnetRef')]"
                             },
-                            "privateIPAllocationMethod": "Dynamic",
+                            "privateIPAllocationMethod": "Static",
+                            "privateIPAddress": "10.0.0.100",
                             "publicIpAddress": {
                                 "id": "[resourceId(resourceGroup().name,'Microsoft.Network/publicIpAddresses', parameters('publicIpAddressName'))]"
                             }
@@ -302,7 +303,8 @@
                             "subnet": {
                                 "id": "[variables('subnetRef')]"
                             },
-                            "privateIPAllocationMethod": "Dynamic",
+                            "privateIPAllocationMethod": "Static",
+                            "privateIPAddress": "10.0.0.200",
                             "publicIpAddress": {
                                 "id": "[resourceId(resourceGroup().name,'Microsoft.Network/publicIpAddresses', parameters('nodePublicIpAddressName'))]"
                             }
