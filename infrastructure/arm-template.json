@@ -6,6 +6,10 @@
             "type": "string",
             "defaultValue": "ca-lab-vm"
         },
+        "nodeVirtualMachineName": {
+            "type": "string",
+            "defaultValue": "dsc-node"
+        },
         "virtualMachineSize": {
             "type": "string",
             "defaultValue": "Standard_A2_v2"
@@ -22,13 +26,17 @@
             "type": "string",
             "defaultValue": "ca-lab-vm001"
         },
+        "nodeNetworkInterfaceName": {
+            "type": "string",
+            "defaultValue": "ca-lab-vm002"
+        },
         "networkSecurityGroupName": {
             "type": "string",
             "defaultValue": "ca-lab-vm-nsg"
         },
         "adminPassword": {
             "type": "string",
-            "defaultValue": "1Lab_Virtual_Machine!"
+            "defaultValue": "1Cloud_Academy_Labs!"
         },
         "storageAccountName": {
             "type": "string",
@@ -53,6 +61,10 @@
         "publicIpAddressName": {
             "type": "string",
             "defaultValue": "ca-lab-vm-ip"
+        },
+        "nodePublicIpAddressName": {
+            "type": "string",
+            "defaultValue": "node-vm-ip"
         },
         "publicIpAddressType": {
             "type": "string",
@@ -139,6 +151,80 @@
             ]
         },
         {
+            "name": "[parameters('virtualMachineName')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2016-04-30-preview",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', parameters('nodeNetworkInterfaceName'))]",
+                "[concat('Microsoft.Storage/storageAccounts/', replace(concat(parameters('storageAccountName'), resourceGroup().name),'-', ''))]"
+            ],
+            "properties": {
+                "osProfile": {
+                    "computerName": "[parameters('nodeVirtualMachineName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]",
+                    "windowsConfiguration": {
+                        "provisionVmAgent": "true"
+                    }
+                },
+                "hardwareProfile": {
+                    "vmSize": "[parameters('virtualMachineSize')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2016-Datacenter",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "vhd": {
+                            "uri": "[concat(concat(reference(resourceId('Microsoft.Storage/storageAccounts', replace(concat(parameters('storageAccountName'), resourceGroup().name),'-', '')), '2015-06-15').primaryEndpoints['blob'], 'vhds/'), parameters('nodeVirtualMachineName'), '20170610002357.vhd')]"
+                        },
+                        "name": "[parameters('nodeVirtualMachineName')]"
+                    },
+                    "dataDisks": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('nodeNetworkInterfaceName'))]"
+                        }
+                    ]
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2015-06-15",
+                    "type": "extensions",
+                    "name": "provision",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [
+                        "[concat('Microsoft.Compute/virtualMachines/', parameters('nodeVirtualMachineName'))]"
+                    ],
+                    "tags": {
+                        "displayName": "provision-vm"
+                    },
+                    "properties": {
+                        "publisher": "Microsoft.Compute",
+                        "type": "CustomScriptExtension",
+                        "typeHandlerVersion": "1.4",
+                        "autoUpgradeMinorVersion": true,
+                        "settings": {
+                            "fileUris": [
+                                "https://raw.githubusercontent.com/lrakai/azure-storage/master/post-deploy/bootstrap.ps1"
+                            ]
+                        },
+                        "protectedSettings": {
+                            "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File bootstrap.ps1 -user ',parameters('adminUsername'),' -password ',parameters('adminPassword'))]"
+                        }
+                    }
+                }
+            ]
+        },
+        {
             "name": "[replace(concat(parameters('storageAccountName'), resourceGroup().name),'-', '')]",
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "2015-06-15",
@@ -199,7 +285,46 @@
             }
         },
         {
+            "name": "[parameters('nodeNetworkInterfaceName')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2016-09-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]",
+                "[concat('Microsoft.Network/publicIpAddresses/', parameters('nodePublicIpAddressName'))]",
+                "[concat('Microsoft.Network/networkSecurityGroups/', parameters('networkSecurityGroupName'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIpAddress": {
+                                "id": "[resourceId(resourceGroup().name,'Microsoft.Network/publicIpAddresses', parameters('nodePublicIpAddressName'))]"
+                            }
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId(resourceGroup().name, 'Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]"
+                }
+            }
+        },
+        {
             "name": "[parameters('publicIpAddressName')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2016-09-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIpAllocationMethod": "[parameters('publicIpAddressType')]"
+            }
+        },
+        {
+            "name": "[parameters('nodePublicIpAddressName')]",
             "type": "Microsoft.Network/publicIpAddresses",
             "apiVersion": "2016-09-01",
             "location": "[resourceGroup().location]",
