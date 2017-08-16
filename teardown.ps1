@@ -1,1 +1,1 @@
-Remove-AzureRmResourceGroup -Force -Name powershell-dsc-lab
+Remove-AzureRmResourceGroup -Force -Name dsc-lab
